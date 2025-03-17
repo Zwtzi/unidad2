@@ -5,31 +5,31 @@ import csv
 import math
 
 def calculate_angle(p1, p2):
-    """Calcula el ángulo entre dos puntos en un plano vertical"""
+    """Calcula el ángulo entre dos puntos en un plano vertical."""
     return abs(math.degrees(math.atan2(p2.y - p1.y, p2.x - p1.x)))
 
-# Rangos de referencia optimizados
+# Rangos de referencia ajustados para mejor clasificación
 POSTURE_THRESHOLDS = {
     "Encorvado": {
-        "nose_y": (0.406, 0.510),
-        "left_shoulder_y": (0.525, 0.609),
-        "right_shoulder_y": (0.532, 0.609),
-        "neck_angle": (36.77, 59.23),
-        "torso_angle": (92.30, 99.48)
+        "nose_y": (0.32, 0.52),
+        "left_shoulder_y": (0.41, 0.47),
+        "right_shoulder_y": (0.42, 0.46),
+        "neck_angle": (5, 45),
+        "torso_angle": (92, 96)
     },
     "Leyendo": {
-        "nose_y": (0.241, 0.459),
-        "left_shoulder_y": (0.380, 0.575),
-        "right_shoulder_y": (0.363, 0.575),
-        "neck_angle": (25.77, 55.49),
-        "torso_angle": (89.32, 101.66)
+        "nose_y": (0.22, 0.30),
+        "left_shoulder_y": (0.34, 0.39),
+        "right_shoulder_y": (0.35, 0.41),
+        "neck_angle": (35, 60),
+        "torso_angle": (90, 94)
     },
     "Mirando": {
-        "nose_y": (0.338, 0.469),
-        "left_shoulder_y": (0.482, 0.606),
-        "right_shoulder_y": (0.512, 0.606),
-        "neck_angle": (56.35, 61.69),
-        "torso_angle": (89.36, 93.88)
+        "nose_y": (0.17, 0.22),
+        "left_shoulder_y": (0.35, 0.39),
+        "right_shoulder_y": (0.37, 0.40),
+        "neck_angle": (55, 65),
+        "torso_angle": (89, 94)
     }
 }
 
@@ -51,7 +51,7 @@ def detect_posture(landmarks):
             thresholds["torso_angle"][0] <= torso_angle <= thresholds["torso_angle"][1]):
             return posture
     
-    # Detectar si el estudiante está mirando hacia un lado
+    # Detección de mirada lateral
     if abs(nose_x - hip_center_x) >= 0.05:
         return "Mirando hacia un lado"
     
@@ -103,8 +103,8 @@ def process_videos(input_folder, output_csv):
     print(f"Archivo CSV generado: {output_csv}")
 
 if __name__ == "__main__":
-    input_folder = "videos_estudiantes"
-    output_csv = "resultados_estudiantes2.csv"
+    input_folder = "videos2"
+    output_csv = "resultado_posturas.csv"
     
     if not os.path.exists(input_folder):
         print(f"La carpeta '{input_folder}' no existe. Asegúrate de colocar los videos en ella.")
