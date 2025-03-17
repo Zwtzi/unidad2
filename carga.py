@@ -8,98 +8,104 @@ def calculate_angle(p1, p2):
     """Calcula el ángulo entre dos puntos en un plano vertical"""
     return abs(math.degrees(math.atan2(p2.y - p1.y, p2.x - p1.x)))
 
+# Rangos de referencia optimizados
+POSTURE_THRESHOLDS = {
+    "Encorvado": {
+        "nose_y": (0.406, 0.510),
+        "left_shoulder_y": (0.525, 0.609),
+        "right_shoulder_y": (0.532, 0.609),
+        "neck_angle": (36.77, 59.23),
+        "torso_angle": (92.30, 99.48)
+    },
+    "Leyendo": {
+        "nose_y": (0.241, 0.459),
+        "left_shoulder_y": (0.380, 0.575),
+        "right_shoulder_y": (0.363, 0.575),
+        "neck_angle": (25.77, 55.49),
+        "torso_angle": (89.32, 101.66)
+    },
+    "Mirando": {
+        "nose_y": (0.338, 0.469),
+        "left_shoulder_y": (0.482, 0.606),
+        "right_shoulder_y": (0.512, 0.606),
+        "neck_angle": (56.35, 61.69),
+        "torso_angle": (89.36, 93.88)
+    }
+}
+
 def detect_posture(landmarks):
     nose_y = landmarks[0].y
     left_shoulder_y = landmarks[11].y
     right_shoulder_y = landmarks[12].y
-    avg_shoulder_y = (left_shoulder_y + right_shoulder_y) / 2
-    shoulder_diff = abs(left_shoulder_y - right_shoulder_y)
-
     nose_x = landmarks[0].x
-    hip_center_x = (landmarks[23].x + landmarks[24].x) / 2  # Promedio de ambas caderas
-
-    neck_angle = calculate_angle(landmarks[0], landmarks[11])  # Ángulo del cuello
-    torso_angle = calculate_angle(landmarks[11], landmarks[23])  # Ángulo del torso
-
-    # Criterios refinados
-    if (
-        nose_y < avg_shoulder_y - 0.01 
-        and shoulder_diff < 0.02 
-        and 10 < neck_angle < 25
-        and abs(nose_x - hip_center_x) < 0.02
-    ):
-        return "Leyendo"
+    hip_center_x = (landmarks[23].x + landmarks[24].x) / 2
     
-    elif (
-        nose_y > avg_shoulder_y + 0.04 
-        or shoulder_diff > 0.04 
-        or neck_angle >= 30
-        or torso_angle >= 20
-    ):
-        return "Encorvado"
+    neck_angle = calculate_angle(landmarks[0], landmarks[11])
+    torso_angle = calculate_angle(landmarks[11], landmarks[23])
     
-    elif (
-        avg_shoulder_y - 0.01 <= nose_y <= avg_shoulder_y + 0.01
-        and abs(neck_angle) < 10
-        and abs(nose_x - hip_center_x) < 0.03
-    ):
-        return "Mirando"
-
-    elif abs(nose_x - hip_center_x) >= 0.05:  # Si la nariz está muy desplazada lateralmente
+    for posture, thresholds in POSTURE_THRESHOLDS.items():
+        if (thresholds["nose_y"][0] <= nose_y <= thresholds["nose_y"][1] and
+            thresholds["left_shoulder_y"][0] <= left_shoulder_y <= thresholds["left_shoulder_y"][1] and
+            thresholds["right_shoulder_y"][0] <= right_shoulder_y <= thresholds["right_shoulder_y"][1] and
+            thresholds["neck_angle"][0] <= neck_angle <= thresholds["neck_angle"][1] and
+            thresholds["torso_angle"][0] <= torso_angle <= thresholds["torso_angle"][1]):
+            return posture
+    
+    # Detectar si el estudiante está mirando hacia un lado
+    if abs(nose_x - hip_center_x) >= 0.05:
         return "Mirando hacia un lado"
-
-    else:
-        return "Desconocido"
+    
+    return "Desconocido"
 
 def process_videos(input_folder, output_csv):
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose()
-
+    
     with open(output_csv, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([
-            "Video", "Frame", "Nose_Y", "Left_Shoulder_Y", 
+            "Video", "Frame", "Nose_Y", "Left_Shoulder_Y",
             "Right_Shoulder_Y", "Neck_Angle", "Torso_Angle", "Estado"
         ])
-
+        
         for video_file in os.listdir(input_folder):
             if video_file.endswith(".mp4"):
                 cap = cv2.VideoCapture(os.path.join(input_folder, video_file))
                 frame_count = 0
-
+                print(f"Procesando video: {video_file}")
+                
                 while cap.isOpened():
                     ret, frame = cap.read()
                     if not ret:
                         break
-
+                    
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     results = pose.process(frame_rgb)
-
+                    
                     if results.pose_landmarks:
                         landmarks = results.pose_landmarks.landmark
                         estado = detect_posture(landmarks)
                         neck_angle = calculate_angle(landmarks[0], landmarks[11])
                         torso_angle = calculate_angle(landmarks[11], landmarks[23])
-
+                        
                         writer.writerow([
                             video_file, frame_count,
-                            round(landmarks[0].y, 4), 
-                            round(landmarks[11].y, 4), 
+                            round(landmarks[0].y, 4),
+                            round(landmarks[11].y, 4),
                             round(landmarks[12].y, 4),
                             round(neck_angle, 2),
                             round(torso_angle, 2),
                             estado
                         ])
                     frame_count += 1
-
+                
                 cap.release()
-
     print(f"Archivo CSV generado: {output_csv}")
 
 if __name__ == "__main__":
     input_folder = "videos_estudiantes"
-    output_csv = "resultados_estudiantes.csv"
-
+    output_csv = "resultados_estudiantes2.csv"
+    
     if not os.path.exists(input_folder):
         print(f"La carpeta '{input_folder}' no existe. Asegúrate de colocar los videos en ella.")
     else:
